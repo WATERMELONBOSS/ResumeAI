@@ -1,5 +1,5 @@
 """
-example_usage.py — ResumeAI · Parsing Layer:
+test_parser.py — ResumeAI · Parsing Layer:
 Demonstrates how to use ResumeParser and JDParser independently.
 
 Run:
