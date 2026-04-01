@@ -1,0 +1,14 @@
+# Person 1 - parsing
+PyMuPDF
+spacy
+
+# Person 2 - scoring
+sentence-transformers
+scikit-learn
+numpy
+
+# Person 3 - generation
+Jinja2
+matplotlib
+seaborn
+pandas

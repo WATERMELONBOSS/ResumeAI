@@ -1,0 +1,78 @@
+{
+  "contact": {
+    "name": "Milan Srinivas",
+    "email": "srinivas.mi@northeastern.edu",
+    "phone": "xxx-xxx-xxxx"
+  },
+  "sections": {
+    "experience": [
+      {
+        "company": "Contriver",
+        "title": "Full Stack Developer",
+        "dates": "Jan 2022 - Dec 2023",
+        "location": "India",
+        "bullets": [
+          "Built REST APIs using Django serving 50K+ users",
+          "Designed PostgreSQL database schema for patient records",
+          "Led weekly standups with 5-person engineering team",
+          "Optimized slow database queries, reducing response time by 40%",
+          "Deployed backend services on AWS EC2 with load balancing",
+          "Integrated third-party payment APIs into the checkout flow",
+          "Wrote unit tests for core business logic using pytest",
+          "Migrated legacy PHP endpoints to Python Django REST framework",
+          "Built CI/CD pipeline using GitHub Actions for automated deployments",
+          "Mentored 2 junior developers on backend best practices"
+        ]
+      },
+      {
+        "company": "Freelance",
+        "title": "Web Developer",
+        "dates": "Jun 2021 - Dec 2021",
+        "location": "Remote",
+        "bullets": [
+          "Built portfolio websites for 5 small business clients using React",
+          "Set up simple Node.js backends for contact form submissions",
+          "Handled client communication and delivered projects on time",
+          "Used Firebase for authentication and real-time data"
+        ]
+      }
+    ],
+    "education": [
+      {
+        "school": "Northeastern University",
+        "degree": "MS Computer Science",
+        "dates": "Sep 2024 - May 2027",
+        "details": ["GPA: 3.8", "Relevant coursework: Foundations of AI, Algorithms, Database Systems"]
+      },
+      {
+        "school": "VTU",
+        "degree": "BE Computer Science",
+        "dates": "Aug 2018 - May 2022",
+        "details": ["GPA: 3.6"]
+      }
+    ],
+    "skills": ["Python", "Django", "React", "PostgreSQL", "AWS", "Docker", "Git", "REST APIs", "pytest", "GitHub Actions"],
+    "projects": [
+      {
+        "name": "Stella",
+        "description": "Gamified blockchain savings app",
+        "bullets": [
+          "Built frontend with React and TypeScript, handling real-time balance updates",
+          "Designed smart contracts in Solidity for automated savings rules",
+          "Integrated Web3.js to connect frontend to Ethereum testnet",
+          "Set up a Node.js backend to track user goals and send notifications"
+        ]
+      },
+      {
+        "name": "ResumeAI",
+        "description": "AI-powered resume tailoring tool",
+        "bullets": [
+          "Built TF-IDF and sentence-transformer scoring pipeline in Python",
+          "Used spaCy NER to extract skills from job descriptions",
+          "Generated tailored resumes from master resume using LaTeX and Jinja2"
+        ]
+      }
+    ]
+  },
+  "all_skills_detected": ["Python", "Django", "React", "PostgreSQL", "AWS", "Docker", "Git", "REST APIs", "pytest", "GitHub Actions", "TypeScript", "Solidity", "Node.js", "Firebase"]
+}

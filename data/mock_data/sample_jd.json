@@ -1,0 +1,44 @@
+{
+  "title": "Backend Software Engineer",
+  "company": "Amazon",
+  "requirements": {
+    "required_skills": ["Python", "AWS", "REST APIs", "PostgreSQL"],
+    "preferred_skills": ["Docker", "Kubernetes", "CI/CD"],
+    "experience_years": 3,
+    "requirement_sentences": [
+      {
+        "text": "Build and maintain scalable backend services using Python",
+        "type": "required"
+      },
+      {
+        "text": "Design and manage relational databases (PostgreSQL or MySQL)",
+        "type": "required"
+      },
+      {
+        "text": "Deploy and monitor services on AWS (EC2, S3, Lambda)",
+        "type": "required"
+      },
+      {
+        "text": "Design clean RESTful APIs consumed by web and mobile clients",
+        "type": "required"
+      },
+      {
+        "text": "3+ years of professional software engineering experience",
+        "type": "required"
+      },
+      {
+        "text": "Experience with Docker and containerized deployments",
+        "type": "preferred"
+      },
+      {
+        "text": "Familiarity with CI/CD pipelines and automated testing",
+        "type": "preferred"
+      },
+      {
+        "text": "Experience with Kubernetes or other orchestration tools",
+        "type": "preferred"
+      }
+    ]
+  },
+  "raw_text": "We are looking for a Backend Software Engineer to join our team. You will build and maintain scalable backend services using Python. You will design and manage relational databases. You will deploy services on AWS. You should have 3+ years of experience. Experience with Docker and CI/CD pipelines is a plus."
+}
