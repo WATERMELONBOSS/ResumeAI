@@ -1,5 +1,6 @@
 # Person 1 - parsing
 PyMuPDF
+pdfplumber
 spacy
 
 # Person 2 - scoring

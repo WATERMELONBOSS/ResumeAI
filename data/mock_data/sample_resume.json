@@ -2,7 +2,7 @@
   "contact": {
     "name": "Milan Srinivas",
     "email": "srinivas.mi@northeastern.edu",
-    "phone": "xxx-xxx-xxxx"
+    "phone": "617-555-0192"
   },
   "sections": {
     "experience": [
@@ -12,28 +12,28 @@
         "dates": "Jan 2022 - Dec 2023",
         "location": "India",
         "bullets": [
-          "Built REST APIs using Django serving 50K+ users",
-          "Designed PostgreSQL database schema for patient records",
-          "Led weekly standups with 5-person engineering team",
-          "Optimized slow database queries, reducing response time by 40%",
-          "Deployed backend services on AWS EC2 with load balancing",
-          "Integrated third-party payment APIs into the checkout flow",
-          "Wrote unit tests for core business logic using pytest",
-          "Migrated legacy PHP endpoints to Python Django REST framework",
-          "Built CI/CD pipeline using GitHub Actions for automated deployments",
-          "Mentored 2 junior developers on backend best practices"
+          "Built REST APIs using Django serving 50K+ daily active users with 99.9% uptime",
+          "Designed PostgreSQL database schema for patient records, reducing query latency by 40%",
+          "Led weekly standups with 5-person engineering team and coordinated sprint planning",
+          "Implemented JWT-based authentication and role-based access control for 3 user tiers",
+          "Migrated legacy monolith to microservices architecture using Docker and Kubernetes",
+          "Wrote unit and integration tests achieving 87% code coverage using pytest",
+          "Integrated third-party payment APIs (Razorpay, Stripe) handling ₹2M+ monthly volume",
+          "Optimised slow database queries using EXPLAIN ANALYSE, cutting p95 latency from 800ms to 120ms",
+          "Maintained CI/CD pipelines on GitHub Actions with automated linting and deployment",
+          "Mentored 2 junior developers through code reviews and pair programming sessions"
         ]
       },
       {
-        "company": "Freelance",
-        "title": "Web Developer",
-        "dates": "Jun 2021 - Dec 2021",
+        "company": "InnovateTech",
+        "title": "Software Engineering Intern",
+        "dates": "May 2021 - Aug 2021",
         "location": "Remote",
         "bullets": [
-          "Built portfolio websites for 5 small business clients using React",
-          "Set up simple Node.js backends for contact form submissions",
-          "Handled client communication and delivered projects on time",
-          "Used Firebase for authentication and real-time data"
+          "Built internal admin dashboard using React and TypeScript to surface real-time analytics",
+          "Wrote Python scripts to automate ETL pipeline, saving 4 hours of manual work weekly",
+          "Collaborated with design team to implement responsive UI components using Tailwind CSS",
+          "Participated in Agile sprints, daily standups, and retrospectives"
         ]
       }
     ],
@@ -42,37 +42,94 @@
         "school": "Northeastern University",
         "degree": "MS Computer Science",
         "dates": "Sep 2024 - May 2027",
-        "details": ["GPA: 3.8", "Relevant coursework: Foundations of AI, Algorithms, Database Systems"]
+        "details": [
+          "GPA: 3.9",
+          "Relevant coursework: Foundations of AI, Algorithms, Distributed Systems, NLP"
+        ]
       },
       {
-        "school": "VTU",
+        "school": "Anna University",
         "degree": "BE Computer Science",
-        "dates": "Aug 2018 - May 2022",
-        "details": ["GPA: 3.6"]
+        "dates": "Aug 2017 - May 2021",
+        "details": [
+          "GPA: 8.7 / 10",
+          "Graduated with distinction"
+        ]
       }
     ],
-    "skills": ["Python", "Django", "React", "PostgreSQL", "AWS", "Docker", "Git", "REST APIs", "pytest", "GitHub Actions"],
+    "skills": [
+      "Python",
+      "JavaScript",
+      "TypeScript",
+      "Java",
+      "React",
+      "Node.js",
+      "Django",
+      "Flask",
+      "PostgreSQL",
+      "MongoDB",
+      "Redis",
+      "AWS",
+      "Docker",
+      "Kubernetes",
+      "CI/CD",
+      "REST APIs",
+      "GraphQL",
+      "Git",
+      "Linux",
+      "Tailwind CSS"
+    ],
     "projects": [
       {
         "name": "Stella",
         "description": "Gamified blockchain savings app",
         "bullets": [
-          "Built frontend with React and TypeScript, handling real-time balance updates",
-          "Designed smart contracts in Solidity for automated savings rules",
-          "Integrated Web3.js to connect frontend to Ethereum testnet",
-          "Set up a Node.js backend to track user goals and send notifications"
+          "Built frontend with React/TypeScript and integrated with Ethereum smart contracts via Web3.js",
+          "Designed Solidity smart contracts for escrow-based savings goals with automatic release",
+          "Deployed on AWS EC2 with Nginx reverse proxy and achieved 200ms average response time",
+          "Won 2nd place at Northeastern Hackathon 2024 (120+ teams)"
         ]
       },
       {
-        "name": "ResumeAI",
-        "description": "AI-powered resume tailoring tool",
+        "name": "SmartResume",
+        "description": "AI-powered resume optimiser using NLP",
         "bullets": [
-          "Built TF-IDF and sentence-transformer scoring pipeline in Python",
-          "Used spaCy NER to extract skills from job descriptions",
-          "Generated tailored resumes from master resume using LaTeX and Jinja2"
+          "Built TF-IDF + semantic similarity pipeline using Scikit-learn and Sentence-Transformers",
+          "Exposed REST API with FastAPI, containerised with Docker, deployed on GCP Cloud Run",
+          "Reduced average job-application time by 60% in user study with 25 participants"
         ]
       }
     ]
   },
-  "all_skills_detected": ["Python", "Django", "React", "PostgreSQL", "AWS", "Docker", "Git", "REST APIs", "pytest", "GitHub Actions", "TypeScript", "Solidity", "Node.js", "Firebase"]
+  "all_skills_detected": [
+    "AWS",
+    "Agile",
+    "CI/CD",
+    "Django",
+    "Docker",
+    "Ethereum",
+    "FastAPI",
+    "Flask",
+    "GCP",
+    "Git",
+    "GraphQL",
+    "Java",
+    "JavaScript",
+    "Kubernetes",
+    "Linux",
+    "Machine Learning",
+    "MongoDB",
+    "NLP",
+    "Nginx",
+    "Node.js",
+    "Pandas",
+    "PostgreSQL",
+    "Python",
+    "REST APIs",
+    "React",
+    "Redis",
+    "Scikit-learn",
+    "Tailwind CSS",
+    "TypeScript"
+  ]
 }

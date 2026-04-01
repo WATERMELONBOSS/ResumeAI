@@ -12,9 +12,16 @@ Or import score_resume() into pipeline.py to wire all 3 stages together.
 
 import json
 import sys
-from baseline_tfidf import score_with_tfidf, compute_overall_keyword_score
-from semantic_scorer import score_with_semantic, compute_overall_semantic_score
-from gap_analysis import analyze_skill_gaps
+
+# support both: running directly from person2_scoring/ OR importing from repo root via pipeline.py
+try:
+    from baseline_tfidf import score_with_tfidf, compute_overall_keyword_score
+    from semantic_scorer import score_with_semantic, compute_overall_semantic_score
+    from gap_analysis import analyze_skill_gaps
+except ImportError:
+    from person2_scoring.baseline_tfidf import score_with_tfidf, compute_overall_keyword_score
+    from person2_scoring.semantic_scorer import score_with_semantic, compute_overall_semantic_score
+    from person2_scoring.gap_analysis import analyze_skill_gaps
 
 
 def score_resume(resume, jd):
