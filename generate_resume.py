@@ -118,7 +118,7 @@ def _print_gap_report(gap_report: dict) -> None:
             print(f"    ~  JD wants: \"{p['jd_skill']}\"  (similarity: {sim:.3f})")
             print(f"       Closest bullet: \"{p['closest_bullet'][:75]}\"")
 
-    print(f"\n  Recommendation: {gap_report.get('recommendation', '')}")
+    print(f"\n  Recommendation: {gap_report.get('recommendation', '')}\n")
 
 
 def _print_assembly_summary(assembled: dict) -> None:
@@ -227,7 +227,7 @@ def _inject_missing_skills(assembled: dict, gap_report: dict) -> dict:
         assembled["skills"] = {"flat": flat, "categorized": cats}
         print(
             f"\n  [+] Injected {len(newly_added)} missing skill(s) into skills section: "
-            f"{chr(44).join(newly_added)}"
+            f"{', '.join(newly_added)}"
         )
     else:
         print("\n  [i] No new skills to inject (all missing skills already present).")

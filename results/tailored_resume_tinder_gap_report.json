@@ -1,0 +1,25 @@
+{
+  "missing_skills": [
+    "Generative AI",
+    "Scala",
+    "Apache Flink",
+    "Apache Kafka",
+    "ElastiCache",
+    "Elasticsearch",
+    "Protocol Buffers",
+    "RDS",
+    "Redis",
+    "gRPC"
+  ],
+  "partial_matches": [
+    {
+      "jd_skill": "DynamoDB",
+      "closest_bullet": "Designed and optimized Oracle SQL databases using normalization, indexing, and stored procedures for high-traffic applications; collaborated with DevOps team to maintain AWS EC2/S3 infrastructure supporting 99.9% uptime",
+      "similarity": 0.4064,
+      "note": "Consider rewording your resume to match this skill more clearly"
+    }
+  ],
+  "jd_title": "Backend Engineer Intern",
+  "jd_company": "Tinder",
+  "recommendation": "Missing skills (10): add these to your resume if you have them: Generative AI, Scala, Apache Flink, Apache Kafka, ElastiCache, Elasticsearch, Protocol Buffers, RDS, Redis, gRPC. Partial matches (1): consider clearer wording for \u2014 \"DynamoDB\"."
+}

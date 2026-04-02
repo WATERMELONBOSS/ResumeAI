@@ -35,7 +35,7 @@ EXPERIENCE_CUT_THRESHOLD: float = 0.25  # avg_relevance below this → cut entry
 BULLET_SCORE_THRESHOLD: float = 0.30  # used for ordering hint only; not hard filter
 
 # Max bullets per experience rank (index 0 = most relevant entry)
-BULLETS_BY_RANK: list[int] = [4, 3, 2, 1]
+BULLETS_BY_RANK: list[int] = [5, 4, 4, 4]  # keep all significant bullets per entry
 
 
 # ─────────────────────────────────────────────────────────────────────────────
