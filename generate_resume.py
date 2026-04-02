@@ -46,6 +46,10 @@ Arguments
 --jd-dir            Directory with JD .txt files (default: data/sample_jds/)
 --output            Output directory for PDF and reports (default: results/)
 --verbose           Enable DEBUG logging
+
+Sample command to run this file to generate a fully updated resume:
+python generate_resume.py --resume data/sample_resumes/milan.pdf --jd data/sample_jds/jd3.txt --add-missing-skills
+
 """
 
 from __future__ import annotations
