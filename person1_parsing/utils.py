@@ -43,14 +43,11 @@ BULLET_INLINE_RE: re.Pattern[str] = re.compile(
 )
 
 # Standalone bullet symbol on its own line (PyMuPDF artefact)
-BULLET_STANDALONE_RE: re.Pattern[str] = re.compile(
-    r"^\s*[•●○▪▸\-–—\*]\s*$"
-)
+BULLET_STANDALONE_RE: re.Pattern[str] = re.compile(r"^\s*[•●○▪▸\-–—\*]\s*$")
 
 # "City, ST" or "Remote" at end of a string
 LOCATION_RE: re.Pattern[str] = re.compile(
-    r",?\s*([A-Z][a-zA-Z\s]+,\s*[A-Z]{2})\s*$"
-    r"|,?\s*(Remote)\s*$",
+    r",?\s*([A-Z][a-zA-Z\s]+,\s*[A-Z]{2})\s*$" r"|,?\s*(Remote)\s*$",
     re.IGNORECASE,
 )
 
@@ -174,7 +171,6 @@ KNOWN_SKILLS: frozenset[str] = frozenset(
         "Cassandra",
         "Redis",
         "Elasticsearch",
-        "ElasticSearch",
         "Neo4j",
         "CouchDB",
         "Firebase",
@@ -245,16 +241,13 @@ KNOWN_SKILLS: frozenset[str] = frozenset(
         "OpenCV",
         "Stable Diffusion",
         "Generative AI",
-        "GenAI",
         # ── Data Engineering ───────────────────────────────────────────────
         "Spark",
         "Apache Spark",
         "Hadoop",
-        "Kafka",
         "Apache Kafka",
         "Airflow",
         "Apache Airflow",
-        "Flink",
         "Apache Flink",
         "dbt",
         "Snowflake",
@@ -300,7 +293,6 @@ KNOWN_SKILLS: frozenset[str] = frozenset(
         "Looker",
         # ── Protocols / Standards ──────────────────────────────────────────
         "Protocol Buffers",
-        "Protobuf",
         "OpenAPI",
         "Swagger",
         "OAuth",
@@ -350,7 +342,9 @@ def extract_skills(text: str) -> list[str]:
 
     for skill_lower, canonical in _SKILLS_LOWER.items():
         # Word-boundary pattern; escape for skills with special chars (C++, .NET)
-        pattern = r"(?<![A-Za-z0-9.+#])" + re.escape(skill_lower) + r"(?![A-Za-z0-9.+#])"
+        pattern = (
+            r"(?<![A-Za-z0-9.+#])" + re.escape(skill_lower) + r"(?![A-Za-z0-9.+#])"
+        )
         if re.search(pattern, text, re.IGNORECASE) and skill_lower not in seen:
             seen.add(skill_lower)
             found.append(canonical)
@@ -363,9 +357,7 @@ def extract_skills(text: str) -> list[str]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _detect_columns(
-    blocks: list, page_width: float
-) -> list[tuple[float, float]]:
+def _detect_columns(blocks: list, page_width: float) -> list[tuple[float, float]]:
     """
     Detect column boundaries from text-block x-coordinates.
 
@@ -523,9 +515,7 @@ def extract_text_from_pdf(file_path: str | Path) -> str:
     if not full_text.strip():
         raise ValueError(f"No extractable text in: {file_path.name}")
 
-    log.info(
-        "Extracted %d chars from %d pages", len(full_text), len(pages_text)
-    )
+    log.info("Extracted %d chars from %d pages", len(full_text), len(pages_text))
     return full_text
 
 
@@ -595,12 +585,43 @@ def normalize_bullet_lines(lines: list[str]) -> list[str]:
 # Words that signal the previous line ended mid-sentence (wrapping)
 _TRAILING_PREPOSITIONS: frozenset[str] = frozenset(
     {
-        "by", "to", "for", "with", "in", "on", "at", "of", "from",
-        "and", "or", "the", "a", "an", "as", "into", "via", "using",
-        "through", "across", "between", "about", "over", "after",
-        "before", "that", "which", "including", "integrating",
-        "reducing", "increasing", "enabling", "achieving", "delivering",
-        "supporting", "maintaining", "&",
+        "by",
+        "to",
+        "for",
+        "with",
+        "in",
+        "on",
+        "at",
+        "of",
+        "from",
+        "and",
+        "or",
+        "the",
+        "a",
+        "an",
+        "as",
+        "into",
+        "via",
+        "using",
+        "through",
+        "across",
+        "between",
+        "about",
+        "over",
+        "after",
+        "before",
+        "that",
+        "which",
+        "including",
+        "integrating",
+        "reducing",
+        "increasing",
+        "enabling",
+        "achieving",
+        "delivering",
+        "supporting",
+        "maintaining",
+        "&",
     }
 )
 
@@ -629,9 +650,7 @@ def merge_continuation_lines(lines: list[str]) -> list[str]:
             prev = merged[-1]
             prev_s = prev.rstrip()
             prev_words = prev_s.split()
-            prev_last = (
-                prev_words[-1].lower().rstrip(".,;:") if prev_words else ""
-            )
+            prev_last = prev_words[-1].lower().rstrip(".,;:") if prev_words else ""
 
             if (
                 not BULLET_INLINE_RE.match(ln)
@@ -689,7 +708,11 @@ def extract_bullets(lines: list[str]) -> list[str]:
     """
     bullets: list[str] = []
     for ln in lines:
-        text = BULLET_INLINE_RE.sub("", ln).strip() if BULLET_INLINE_RE.match(ln) else ln.strip()
+        text = (
+            BULLET_INLINE_RE.sub("", ln).strip()
+            if BULLET_INLINE_RE.match(ln)
+            else ln.strip()
+        )
         if text and len(text) >= 15:
             bullets.append(text)
     return bullets

@@ -70,8 +70,16 @@ def analyze_skill_gaps(resume, jd):
         best_bullet_idx = similarities.index(best_score)
         best_bullet = all_bullet_texts[best_bullet_idx]
 
-        # also check if it's directly listed in the skills section (exact match)
-        in_skills_section = any(skill.lower() in s.lower() for s in resume_skills)
+        # Alias-aware coverage check:
+        # "Apache Kafka" is covered if "Kafka" is in resume skills (and vice versa).
+        # Any shared token between the JD skill and a resume skill counts as a match.
+        skill_tokens = set(skill.lower().split())
+        in_skills_section = any(
+            skill.lower() in s.lower()                      # "Kafka" in "Apache Kafka"
+            or s.lower() in skill.lower()                   # "Apache Kafka" contains "Kafka"
+            or bool(skill_tokens & set(s.lower().split()))  # shared token: "kafka" in both
+            for s in resume_skills
+        )
 
         if best_score >= 0.6 or in_skills_section:
             covered.append(skill)

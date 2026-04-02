@@ -13,3 +13,4 @@ Jinja2
 matplotlib
 seaborn
 pandas
+reportlab
