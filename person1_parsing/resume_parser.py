@@ -156,7 +156,13 @@ def extract_contact_info(text: str) -> dict[str, str]:
 
     Returns {"name": str, "email": str, "phone": str}.
     """
-    contact: dict[str, str] = {"name": "", "email": "", "phone": ""}
+    contact: dict[str, str] = {
+        "name": "",
+        "email": "",
+        "phone": "",
+        "linkedin": "",
+        "location": "",
+    }
 
     email_m = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
     if email_m:
@@ -165,6 +171,18 @@ def extract_contact_info(text: str) -> dict[str, str]:
     phone_m = re.search(r"(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", text)
     if phone_m:
         contact["phone"] = phone_m.group()
+
+    # LinkedIn URL extraction
+    linkedin_m = re.search(
+        r"(?:linkedin\.com/in/|linkedin\.com/pub/)([\w\-]+)", text, re.IGNORECASE
+    )
+    if linkedin_m:
+        contact["linkedin"] = "www.linkedin.com/in/" + linkedin_m.group(1)
+
+    # City/State location from contact block (first 5 lines)
+    loc_m = re.search(r"\b([A-Z][a-zA-Z\s]+,\s*[A-Z]{2})\b|\b(Remote)\b", text)
+    if loc_m:
+        contact["location"] = (loc_m.group(1) or loc_m.group(2)).strip()
 
     # Name heuristic: first short, mostly-alphabetic, non-header line(s)
     _skip = re.compile(
@@ -321,12 +339,17 @@ def parse_experience(section_text: str) -> list[dict]:
             if not h_clean:
                 continue
             _, loc = extract_location(h_clean)
-            remaining = re.sub(
-                r",?\s*([A-Z][a-zA-Z\s]+,\s*[A-Z]{2})\s*$|,?\s*(Remote)\s*$",
-                "",
-                h_clean,
-                flags=re.IGNORECASE,
-            ).strip().rstrip("|,–-—").strip()
+            remaining = (
+                re.sub(
+                    r",?\s*([A-Z][a-zA-Z\s]+,\s*[A-Z]{2})\s*$|,?\s*(Remote)\s*$",
+                    "",
+                    h_clean,
+                    flags=re.IGNORECASE,
+                )
+                .strip()
+                .rstrip("|,–-—")
+                .strip()
+            )
             if loc and not remaining:
                 location = loc
             else:
@@ -341,9 +364,13 @@ def parse_experience(section_text: str) -> list[dict]:
                 if not company:
                     company = line1
             else:
-                if COMPANY_HINTS_RE.search(line2) and not COMPANY_HINTS_RE.search(line1):
+                if COMPANY_HINTS_RE.search(line2) and not COMPANY_HINTS_RE.search(
+                    line1
+                ):
                     title, company = line1, line2
-                elif COMPANY_HINTS_RE.search(line1) and not COMPANY_HINTS_RE.search(line2):
+                elif COMPANY_HINTS_RE.search(line1) and not COMPANY_HINTS_RE.search(
+                    line2
+                ):
                     title, company = line2, line1
                 else:
                     title, company = line1, line2  # default
@@ -387,9 +414,28 @@ def parse_experience(section_text: str) -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _DEGREE_KEYWORDS = [
-    "Bachelor", "Master", "B.S.", "M.S.", "B.A.", "M.A.", "Ph.D.", "PhD",
-    "B.Tech", "M.Tech", "B.E.", "M.E.", "MBA", "Associate", "Diploma",
-    "BS ", "MS ", "BA ", "MA ", "MASTER OF", "BACHELOR OF", "B.E ",
+    "Bachelor",
+    "Master",
+    "B.S.",
+    "M.S.",
+    "B.A.",
+    "M.A.",
+    "Ph.D.",
+    "PhD",
+    "B.Tech",
+    "M.Tech",
+    "B.E.",
+    "M.E.",
+    "MBA",
+    "Associate",
+    "Diploma",
+    "BS ",
+    "MS ",
+    "BA ",
+    "MA ",
+    "MASTER OF",
+    "BACHELOR OF",
+    "B.E ",
 ]
 
 _SCHOOL_HINTS_RE = re.compile(
@@ -469,7 +515,12 @@ def parse_education(section_text: str) -> list[dict]:
                 degree_part = parts[0].strip()
                 school_part = parts[1].strip() if len(parts) > 1 else ""
                 school_part = DATE_RANGE.sub("", school_part).strip()
-                school_part = re.sub(r"\(C?GPA[^)]*\)", "", school_part).strip().rstrip(",").strip()
+                school_part = (
+                    re.sub(r"\(C?GPA[^)]*\)", "", school_part)
+                    .strip()
+                    .rstrip(",")
+                    .strip()
+                )
                 current["degree"] = degree_part
                 current["school"] = school_part
             else:
@@ -494,7 +545,12 @@ def parse_education(section_text: str) -> list[dict]:
                 pass  # pure location — skip for education
             elif _SCHOOL_HINTS_RE.search(ln) and not current["school"]:
                 school_clean = DATE_RANGE.sub("", ln).strip()
-                school_clean = re.sub(r"\(C?GPA[^)]*\)", "", school_clean).strip().rstrip(",").strip()
+                school_clean = (
+                    re.sub(r"\(C?GPA[^)]*\)", "", school_clean)
+                    .strip()
+                    .rstrip(",")
+                    .strip()
+                )
                 current["school"] = school_clean
             elif not current["school"] and not date_range:
                 if current["degree"] and len(current["degree"]) < 10:
@@ -536,9 +592,7 @@ def parse_education(section_text: str) -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _TECH_STACK_HEADER_RE = re.compile(r"^Tech\s+Stack\s*:", re.IGNORECASE)
-_INLINE_PROJECT_RE = re.compile(
-    r"^[•●○▪▸\-–—\*]\s+(.+?)\s*(?:\(\d{4}\))?\s*:\s+(.+)$"
-)
+_INLINE_PROJECT_RE = re.compile(r"^[•●○▪▸\-–—\*]\s+(.+?)\s*(?:\(\d{4}\))?\s*:\s+(.+)$")
 
 
 def parse_projects(section_text: str) -> list[dict]:
@@ -766,9 +820,7 @@ def _aggregate_all_skills(
     _add(skills_section)
 
     # Vocabulary-matched skills from experience bullets
-    all_exp_text = " ".join(
-        b for entry in experience for b in entry.get("bullets", [])
-    )
+    all_exp_text = " ".join(b for entry in experience for b in entry.get("bullets", []))
     _add(extract_skills(all_exp_text))
 
     # Vocabulary-matched skills from projects
@@ -781,6 +833,163 @@ def _aggregate_all_skills(
     _add(extract_skills(all_proj_text))
 
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORIZED SKILLS PARSER  (preserves "Label: skill1, skill2" structure)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def parse_skills_section_categorized(section_text: str) -> list[dict]:
+    """
+    Parse the skills section preserving category labels.
+
+    Returns a list of dicts: [{"category": str, "skills": [str]}, ...]
+    Falls back to a single "Skills" category if no labels are detected.
+    """
+    if not section_text or not section_text.strip():
+        return []
+
+    categories: list[dict] = []
+    _CAT_LINE = re.compile(r"^([A-Za-z][A-Za-z\s&/]+):\s*(.*)$")
+
+    for line in section_text.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        m = _CAT_LINE.match(line)
+        if m:
+            cat_name = m.group(1).strip()
+            skills_str = m.group(2).strip()
+            skills = [s.strip() for s in re.split(r"[,|;]", skills_str) if s.strip()]
+            if skills:
+                categories.append({"category": cat_name, "skills": skills})
+        elif categories:
+            # continuation line — append skills to last category
+            extra = [s.strip() for s in re.split(r"[,|;]", line) if s.strip()]
+            categories[-1]["skills"].extend(extra)
+
+    if not categories:
+        # No category labels found — return flat as single group
+        flat = [s.strip() for s in re.split(r"[,|;\n]", section_text) if s.strip()]
+        if flat:
+            categories = [{"category": "Skills", "skills": flat}]
+
+    return categories
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EXTRA SECTIONS PARSER  (publications, leadership, achievements, certifications)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_EXTRA_SECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    (
+        "publications",
+        re.compile(
+            r"^(research\s*(&|and)\s*)?publications?|^research$",
+            re.IGNORECASE | re.MULTILINE,
+        ),
+    ),
+    (
+        "leadership",
+        re.compile(
+            r"^leadership(\s*(and|&)\s*teaching)?|^teaching\s+experience",
+            re.IGNORECASE | re.MULTILINE,
+        ),
+    ),
+    (
+        "achievements",
+        re.compile(
+            r"^achievements?|^extracurricular|^honors?|^awards?",
+            re.IGNORECASE | re.MULTILINE,
+        ),
+    ),
+    (
+        "certifications",
+        re.compile(
+            r"^certifications?|^licenses?",
+            re.IGNORECASE | re.MULTILINE,
+        ),
+    ),
+]
+
+
+def parse_extra_sections(raw_text: str) -> dict[str, str]:
+    """
+    Extract extra resume sections (publications, leadership, achievements)
+    as raw text blocks keyed by section name.
+    """
+    lines = raw_text.split("\n")
+    result: dict[str, str] = {}
+    boundaries: list[tuple[int, str]] = []
+    seen: set[str] = set()
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or len(stripped) > 60:
+            continue
+        if stripped.endswith((".", "!", "?", ",")):
+            continue
+        for section_name, pattern in _EXTRA_SECTION_PATTERNS:
+            if pattern.search(stripped) and section_name not in seen:
+                boundaries.append((i, section_name))
+                seen.add(section_name)
+                break
+
+    for idx, (line_num, section_name) in enumerate(boundaries):
+        start = line_num + 1
+        end = boundaries[idx + 1][0] if idx + 1 < len(boundaries) else len(lines)
+        body = "\n".join(lines[start:end]).strip()
+        if body:
+            result[section_name] = body
+
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COURSES EXTRACTOR  (from education section text)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def extract_courses_from_education_text(section_text: str) -> dict[str, str]:
+    """
+    Extract "Courses: ..." lines and associate them with the most recent
+    degree entry found before the courses line.
+    Returns {degree_keyword: courses_string}.
+    """
+    courses: dict[str, str] = {}
+    lines = [l.strip() for l in section_text.split("\n") if l.strip()]
+    last_degree = ""
+
+    for line in lines:
+        # Detect degree lines
+        if any(
+            kw.lower() in line.lower()
+            for kw in [
+                "Bachelor",
+                "Master",
+                "B.S.",
+                "M.S.",
+                "B.E",
+                "M.E",
+                "B.Tech",
+                "M.Tech",
+                "Associate",
+                "Diploma",
+                "BS ",
+                "MS ",
+                "MASTER",
+                "BACHELOR",
+            ]
+        ):
+            last_degree = line[:60]
+
+        # Detect course lines
+        m = re.search(r"Courses?\s*:\s*(.+)", line, re.IGNORECASE)
+        if m and last_degree:
+            courses[last_degree] = m.group(1).strip()
+
+    return courses
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -821,6 +1030,21 @@ def parse_resume(file_path: str) -> dict:
     education = parse_education(sections.get("education", ""))
     projects = parse_projects(sections.get("projects", ""))
     skills = parse_skills_section(sections.get("skills", ""))
+    skills_categorized = parse_skills_section_categorized(sections.get("skills", ""))
+
+    # Courses per degree from education section text
+    courses_map = extract_courses_from_education_text(sections.get("education", ""))
+    for edu_entry in education:
+        for degree_key, courses_str in courses_map.items():
+            if (
+                edu_entry.get("degree", "")[:40].lower() in degree_key.lower()
+                or degree_key.lower() in edu_entry.get("degree", "").lower()
+            ):
+                edu_entry["courses"] = courses_str
+                break
+
+    # Extra sections: publications, leadership, achievements
+    extra_sections = parse_extra_sections(raw_text)
 
     all_skills = _aggregate_all_skills(skills, experience, projects)
 
@@ -830,8 +1054,10 @@ def parse_resume(file_path: str) -> dict:
             "experience": experience,
             "education": education,
             "skills": skills,
+            "skills_categorized": skills_categorized,
             "projects": projects,
         },
+        "extra_sections": extra_sections,
         "all_skills_detected": all_skills,
     }
 

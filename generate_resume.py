@@ -58,7 +58,7 @@ import sys
 from pathlib import Path
 
 # Force stdout to flush immediately — prevents interleaved print/logging on Windows
-if hasattr(sys.stdout, 'reconfigure'):
+if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(line_buffering=True)
 
 # ── ensure repo root is on sys.path regardless of invocation directory ────────
@@ -71,7 +71,10 @@ from person1_parsing.jd_parser import parse_jd
 from person2_scoring.scorer import score_resume
 from person3_generation.assembler import assemble_resume
 from person3_generation.latex_generator import generate_resume_pdf
-from person3_generation.multi_jd_compare import run_multi_jd_comparison, print_multi_jd_summary
+from person3_generation.multi_jd_compare import (
+    run_multi_jd_comparison,
+    print_multi_jd_summary,
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DISPLAY HELPERS
@@ -118,34 +121,45 @@ def _print_assembly_summary(assembled: dict) -> None:
     _header("ASSEMBLY SUMMARY")
     exp = assembled.get("experience", [])
     proj = assembled.get("projects", [])
-    skills = assembled.get("skills", [])
+    # skills is now {"flat": [...], "categorized": [...]} — extract flat list
+    skills_raw = assembled.get("skills", [])
+    skills = skills_raw.get("flat", []) if isinstance(skills_raw, dict) else skills_raw
     scores = assembled.get("overall_scores", {})
 
     print(f"\n  Semantic score : {scores.get('semantic', 0.0):.4f}")
     print(f"  Keyword score  : {scores.get('keyword', 0.0):.4f}")
     print(f"\n  Experiences included : {len(exp)}")
     for e in exp:
-        print(f"    • {e.get('company', '?')} — {e.get('title', '?')}"
-              f"  (avg relevance: {e.get('avg_relevance', 0.0):.3f},"
-              f" {len(e.get('bullets', []))} bullets)")
+        print(
+            f"    • {e.get('company', '?')} — {e.get('title', '?')}"
+            f"  (avg relevance: {e.get('avg_relevance', 0.0):.3f},"
+            f" {len(e.get('bullets', []))} bullets)"
+        )
     print(f"\n  Projects included    : {len(proj)}")
     for p in proj:
-        print(f"    • {p.get('name', '?')}  (avg relevance: {p.get('avg_relevance', 0.0):.3f})")
-    print(f"\n  Skills in output ({len(skills)}): {', '.join(skills[:12])}"
-          + (" …" if len(skills) > 12 else ""))
+        print(
+            f"    • {p.get('name', '?')}  (avg relevance: {p.get('avg_relevance', 0.0):.3f})"
+        )
+    print(
+        f"\n  Skills in output ({len(skills)}): {', '.join(skills[:12])}"
+        + (" …" if len(skills) > 12 else "")
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CORE PIPELINE STEPS
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _stage1_parse(resume_path: str, jd_source: str) -> tuple[dict, dict]:
     """Run Stage 1: parse PDF resume and JD text into dicts."""
     print(f"\n[Stage 1] Parsing resume: {resume_path}")
     resume = parse_resume(resume_path)
-    print(f"  → {len(resume['sections']['experience'])} experiences, "
-          f"{len(resume['sections']['projects'])} projects, "
-          f"{len(resume['all_skills_detected'])} skills")
+    print(
+        f"  → {len(resume['sections']['experience'])} experiences, "
+        f"{len(resume['sections']['projects'])} projects, "
+        f"{len(resume['all_skills_detected'])} skills"
+    )
 
     if Path(jd_source).is_file():
         with open(jd_source, encoding="utf-8", errors="ignore") as fh:
@@ -156,9 +170,13 @@ def _stage1_parse(resume_path: str, jd_source: str) -> tuple[dict, dict]:
         print(f"\n[Stage 1] Parsing JD from raw text ({len(jd_text)} chars)")
 
     jd = parse_jd(jd_text)
-    print(f"  → Role: {jd.get('title', '(unknown)')} @ {jd.get('company', '(unknown)')}")
-    print(f"  → {len(jd['requirements']['required_skills'])} required skills, "
-          f"{len(jd['requirements']['preferred_skills'])} preferred skills")
+    print(
+        f"  → Role: {jd.get('title', '(unknown)')} @ {jd.get('company', '(unknown)')}"
+    )
+    print(
+        f"  → {len(jd['requirements']['required_skills'])} required skills, "
+        f"{len(jd['requirements']['preferred_skills'])} preferred skills"
+    )
     return resume, jd
 
 
@@ -185,13 +203,28 @@ def _inject_missing_skills(assembled: dict, gap_report: dict) -> dict:
     if not missing:
         return assembled
 
-    existing_lower = {s.lower() for s in assembled.get("skills", [])}
+    # skills is a dict {"flat": [...], "categorized": [...]}
+    skills_data = assembled.get("skills", {})
+    if isinstance(skills_data, dict):
+        flat = skills_data.get("flat", [])
+        cats = skills_data.get("categorized", [])
+    else:
+        flat = skills_data
+        cats = [{"category": "Skills", "skills": skills_data}]
+
+    existing_lower = {s.lower() for s in flat}
     newly_added = [s for s in missing if s.lower() not in existing_lower]
 
     if newly_added:
-        assembled["skills"] = assembled.get("skills", []) + newly_added
-        print(f"\n  [+] Injected {len(newly_added)} missing skill(s) into skills section: "
-              f"{', '.join(newly_added)}")
+        flat = flat + newly_added
+        # Also append to last category so they appear in categorized skills
+        if cats:
+            cats[-1]["skills"] = cats[-1]["skills"] + newly_added
+        assembled["skills"] = {"flat": flat, "categorized": cats}
+        print(
+            f"\n  [+] Injected {len(newly_added)} missing skill(s) into skills section: "
+            f"{chr(44).join(newly_added)}"
+        )
     else:
         print("\n  [i] No new skills to inject (all missing skills already present).")
 
@@ -220,12 +253,15 @@ def _save_gap_report_json(gap_report: dict, output_dir: str, stem: str) -> str:
 # SINGLE-JD PIPELINE
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def run_single_jd_pipeline(args: argparse.Namespace) -> None:
     """
     Full single-JD pipeline:
     Stage 1 → Stage 2 → Stage 3 assembly → (optionally inject missing skills) → PDF
     """
-    output_dir = str(Path(args.output))  # normalize: removes trailing slash / double slash
+    output_dir = str(
+        Path(args.output)
+    )  # normalize: removes trailing slash / double slash
 
     # ── Load or compute scored output ────────────────────────────────────────
     if args.scored:
@@ -240,10 +276,17 @@ def run_single_jd_pipeline(args: argparse.Namespace) -> None:
                 jd = json.load(fh)
         else:
             # Build a minimal jd dict so assembly works without a JD file
-            jd = {"title": "", "company": "", "requirements": {
-                "required_skills": [], "preferred_skills": [],
-                "experience_years": None, "requirement_sentences": [],
-            }, "raw_text": ""}
+            jd = {
+                "title": "",
+                "company": "",
+                "requirements": {
+                    "required_skills": [],
+                    "preferred_skills": [],
+                    "experience_years": None,
+                    "requirement_sentences": [],
+                },
+                "raw_text": "",
+            }
 
     else:
         # Full pipeline from scratch
@@ -263,7 +306,9 @@ def run_single_jd_pipeline(args: argparse.Namespace) -> None:
 
     # ── Stage 3: Assemble ────────────────────────────────────────────────────
     print("\n[Stage 3] Assembling tailored resume...")
-    assembled = assemble_resume(scored, jd)
+    # Pass full resume dict so assembler can restore all original bullets and extra sections
+    full_resume = locals().get("resume", None)  # available when full pipeline ran
+    assembled = assemble_resume(scored, jd, resume=full_resume)
     _print_assembly_summary(assembled)
     _print_gap_report(assembled["gap_report"])
 
@@ -296,6 +341,7 @@ def run_single_jd_pipeline(args: argparse.Namespace) -> None:
 # MULTI-JD PIPELINE
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def run_multi_jd_pipeline(args: argparse.Namespace) -> None:
     """
     Multi-JD comparison pipeline:
@@ -325,8 +371,10 @@ def run_multi_jd_pipeline(args: argparse.Namespace) -> None:
     # Parse resume once
     print("[Stage 1] Parsing resume PDF...")
     resume = parse_resume(args.resume)
-    print(f"  → {len(resume['sections']['experience'])} experiences, "
-          f"{len(resume['sections']['projects'])} projects")
+    print(
+        f"  → {len(resume['sections']['experience'])} experiences, "
+        f"{len(resume['sections']['projects'])} projects"
+    )
 
     scored_outputs: dict[str, dict] = {}
 
@@ -340,8 +388,10 @@ def run_multi_jd_pipeline(args: argparse.Namespace) -> None:
         scored["contact"] = resume.get("contact", {})
         label = jd_file.stem
         scored_outputs[label] = scored
-        print(f"  → Semantic: {scored['overall_semantic_score']:.4f}  "
-              f"Keyword: {scored['overall_keyword_score']:.4f}")
+        print(
+            f"  → Semantic: {scored['overall_semantic_score']:.4f}  "
+            f"Keyword: {scored['overall_keyword_score']:.4f}"
+        )
 
     # Run comparison
     print("\n[Stage 3] Running multi-JD comparison analysis...")
@@ -362,8 +412,10 @@ def run_multi_jd_pipeline(args: argparse.Namespace) -> None:
         scored_outputs,
         key=lambda k: scored_outputs[k]["overall_semantic_score"],
     )
-    print(f"\n  Best-matching JD: {best_jd_label} "
-          f"(semantic={scored_outputs[best_jd_label]['overall_semantic_score']:.4f})")
+    print(
+        f"\n  Best-matching JD: {best_jd_label} "
+        f"(semantic={scored_outputs[best_jd_label]['overall_semantic_score']:.4f})"
+    )
 
     if args.add_missing_skills or True:  # always generate for best JD in multi mode
         best_scored = scored_outputs[best_jd_label]
@@ -371,16 +423,19 @@ def run_multi_jd_pipeline(args: argparse.Namespace) -> None:
         best_jd_path = jd_dir / f"{best_jd_label}.txt"
         with open(best_jd_path, encoding="utf-8", errors="ignore") as fh:
             best_jd = parse_jd(fh.read())
-        assembled = assemble_resume(best_scored, best_jd)
+        assembled = assemble_resume(best_scored, best_jd, resume=resume)
         if args.add_missing_skills:
             assembled = _inject_missing_skills(assembled, assembled["gap_report"])
-        pdf_path = _stage3_generate(assembled, output_dir, f"best_match_{best_jd_label}")
+        pdf_path = _stage3_generate(
+            assembled, output_dir, f"best_match_{best_jd_label}"
+        )
         print(f"  Best-match PDF  : {pdf_path}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CLI ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
@@ -391,28 +446,49 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     # Input sources
-    ap.add_argument("--resume", default=None,
-                    help="Path to master resume PDF (Stage 1 input)")
-    ap.add_argument("--jd", default=None,
-                    help="Path to a single JD .txt file")
-    ap.add_argument("--jd-json", default=None,
-                    help="Path to a pre-parsed JD JSON (skip Stage 1 JD parsing)")
-    ap.add_argument("--scored", default=None,
-                    help="Path to a pre-scored resume JSON (skip Stage 1 + 2)")
+    ap.add_argument(
+        "--resume", default=None, help="Path to master resume PDF (Stage 1 input)"
+    )
+    ap.add_argument("--jd", default=None, help="Path to a single JD .txt file")
+    ap.add_argument(
+        "--jd-json",
+        default=None,
+        help="Path to a pre-parsed JD JSON (skip Stage 1 JD parsing)",
+    )
+    ap.add_argument(
+        "--scored",
+        default=None,
+        help="Path to a pre-scored resume JSON (skip Stage 1 + 2)",
+    )
 
     # Behavior flags
-    ap.add_argument("--add-missing-skills", action="store_true", default=False,
-                    help="Inject missing JD skills into the skills section before generating PDF")
-    ap.add_argument("--multi-jd", action="store_true", default=False,
-                    help="Run multi-JD comparison across all JDs in --jd-dir")
-    ap.add_argument("--jd-dir", default="data/sample_jds/",
-                    help="Directory of JD .txt files for multi-JD mode (default: data/sample_jds/)")
+    ap.add_argument(
+        "--add-missing-skills",
+        action="store_true",
+        default=False,
+        help="Inject missing JD skills into the skills section before generating PDF",
+    )
+    ap.add_argument(
+        "--multi-jd",
+        action="store_true",
+        default=False,
+        help="Run multi-JD comparison across all JDs in --jd-dir",
+    )
+    ap.add_argument(
+        "--jd-dir",
+        default="data/sample_jds/",
+        help="Directory of JD .txt files for multi-JD mode (default: data/sample_jds/)",
+    )
 
     # Output
-    ap.add_argument("--output", default="results/",
-                    help="Output directory for PDF + reports (default: results/)")
-    ap.add_argument("--verbose", action="store_true", default=False,
-                    help="Enable DEBUG logging")
+    ap.add_argument(
+        "--output",
+        default="results/",
+        help="Output directory for PDF + reports (default: results/)",
+    )
+    ap.add_argument(
+        "--verbose", action="store_true", default=False, help="Enable DEBUG logging"
+    )
 
     return ap
 

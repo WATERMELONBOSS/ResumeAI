@@ -3,16 +3,18 @@ assembler.py
 ------------
 Stage 3 — Resume Assembly Logic.
 
-Takes the scored JSON from Person 2 and applies the structural decision rules
-defined in the project action plan:
+Takes the scored JSON from Person 2 and the full resume dict from Person 1,
+then applies structural decision rules:
 
-  1. Experience Selection  — cut entries with avg_relevance < 0.3
-  2. Bullet Allocation     — top entry gets 4 bullets, 2nd gets 3, 3rd gets 2;
-                             only bullets with semantic_score >= 0.45 qualify
-  3. Section Ordering      — driven by section_weight; Experience first for most
-                             SWE roles
-  4. Skills Curation       — JD-matched skills first, then remaining resume skills
-  5. Gap Report            — missing + partial_match skills with actionable notes
+  1. Experience Selection  — cut entries with avg_relevance < EXPERIENCE_CUT_THRESHOLD
+  2. Bullet Ordering       — sort bullets by semantic_score descending; keep ALL from
+                             original resume (scoring used for ORDER, not hard filtering)
+  3. Bullet Cap            — top entry gets up to 4 bullets, 2nd up to 3, 3rd up to 2, rest 1
+  4. Section Ordering      — driven by section_weight
+  5. Skills Curation       — use categorized skills from person1 if available;
+                             JD-matched skills promoted to front of each category
+  6. Extra Sections        — pass through publications, leadership, achievements
+  7. Gap Report            — missing + partial_match skills with actionable notes
 
 Public API:
     from person3_generation.assembler import assemble_resume
@@ -26,11 +28,11 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CONSTANTS (tuned per action plan thresholds)
+# CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
 
 EXPERIENCE_CUT_THRESHOLD: float = 0.25  # avg_relevance below this → cut entry
-BULLET_SCORE_THRESHOLD: float = 0.30  # semantic_score below this → skip bullet
+BULLET_SCORE_THRESHOLD: float = 0.30  # used for ordering hint only; not hard filter
 
 # Max bullets per experience rank (index 0 = most relevant entry)
 BULLETS_BY_RANK: list[int] = [4, 3, 2, 1]
@@ -41,18 +43,54 @@ BULLETS_BY_RANK: list[int] = [4, 3, 2, 1]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _build_bullet_score_lookup(scored_sections: dict) -> dict[str, float]:
+    """Build a text → semantic_score lookup from all scored bullets."""
+    lookup: dict[str, float] = {}
+    for section in ["experience", "projects"]:
+        for entry in scored_sections.get(section, []):
+            for b in entry.get("bullets", []):
+                if b.get("text"):
+                    lookup[b["text"]] = b.get("semantic_score", 0.0)
+    return lookup
+
+
+def _get_original_bullets(
+    entry_key: tuple[str, str],
+    resume: dict | None,
+    section: str,
+) -> list[str] | None:
+    """
+    Look up the original (unfiltered) bullets from the full resume dict.
+    Returns None if resume is not provided or entry not found.
+    entry_key = (company, title) or (name,) for projects.
+    """
+    if not resume:
+        return None
+    orig_entries = resume.get("sections", {}).get(section, [])
+    for e in orig_entries:
+        if section == "experience":
+            if (
+                e.get("company", "").strip() == entry_key[0].strip()
+                and e.get("title", "").strip() == entry_key[1].strip()
+            ):
+                return e.get("bullets", [])
+        else:  # projects
+            if e.get("name", "").strip() == entry_key[0].strip():
+                return e.get("bullets", [])
+    return None
+
+
 def _select_and_trim_experiences(
     scored_experience: list[dict],
+    resume: dict | None,
+    bullet_lookup: dict[str, float],
 ) -> list[dict]:
     """
-    1. Filter out entries with avg_relevance < EXPERIENCE_CUT_THRESHOLD.
+    1. Filter entries below EXPERIENCE_CUT_THRESHOLD (keep at least top-2 fallback).
     2. Sort survivors by avg_relevance descending.
-    3. For each entry, keep only the top-N bullets (by semantic_score)
-       that are also above BULLET_SCORE_THRESHOLD.
-       If no bullets pass the threshold, take the top-1 so the entry
-       is never empty.
+    3. For each entry, use ALL original bullets ordered by semantic score.
+       Apply a bullet cap by rank (4/3/2/1) — no hard score filter.
     """
-    # Keep entries above threshold; retain at least the top-2 even if all are low
     eligible = [
         e
         for e in scored_experience
@@ -60,7 +98,6 @@ def _select_and_trim_experiences(
     ]
 
     if not eligible:
-        # Fallback: take top-2 by avg_relevance so the resume isn't empty
         eligible = sorted(
             scored_experience, key=lambda e: e.get("avg_relevance", 0.0), reverse=True
         )[:2]
@@ -75,44 +112,47 @@ def _select_and_trim_experiences(
     for rank, entry in enumerate(eligible):
         max_bullets = BULLETS_BY_RANK[rank] if rank < len(BULLETS_BY_RANK) else 1
 
-        # Sort bullets by semantic_score descending
-        sorted_bullets = sorted(
-            entry.get("bullets", []),
-            key=lambda b: b.get("semantic_score", 0.0),
-            reverse=True,
+        # Prefer original (unfiltered) bullets from full resume
+        orig_bullets = _get_original_bullets(
+            (entry.get("company", ""), entry.get("title", "")),
+            resume,
+            "experience",
         )
+        if orig_bullets:
+            # Order by semantic score (best first), keep up to max_bullets
+            ordered = sorted(
+                orig_bullets,
+                key=lambda b: bullet_lookup.get(b, 0.0),
+                reverse=True,
+            )
+        else:
+            # Fall back to scored bullets text
+            sorted_scored = sorted(
+                entry.get("bullets", []),
+                key=lambda b: b.get("semantic_score", 0.0),
+                reverse=True,
+            )
+            ordered = [b["text"] for b in sorted_scored]
 
-        # Keep bullets above threshold, up to max_bullets
-        passing = [
-            b
-            for b in sorted_bullets
-            if b.get("semantic_score", 0.0) >= BULLET_SCORE_THRESHOLD
-        ]
-
-        if not passing:
-            # Take top-1 regardless of score so entry has at least one bullet
-            passing = sorted_bullets[:1]
-
-        selected_bullets = passing[:max_bullets]
+        selected = ordered[:max_bullets] if ordered else []
 
         assembled_entry = {
             "company": entry.get("company", ""),
             "title": entry.get("title", ""),
             "dates": entry.get("dates", ""),
             "location": entry.get("location", ""),
-            "bullets": [b["text"] for b in selected_bullets],
+            "bullets": selected,
             "avg_relevance": entry.get("avg_relevance", 0.0),
             "section_weight": entry.get("section_weight", 1.0),
         }
         assembled.append(assembled_entry)
         log.info(
-            "Experience entry '%s' @ '%s': rank=%d, avg=%.3f, bullets=%d/%d",
+            "Experience '%s' @ '%s': rank=%d, avg=%.3f, bullets=%d",
             entry.get("title", "?"),
             entry.get("company", "?"),
             rank,
             entry.get("avg_relevance", 0.0),
-            len(selected_bullets),
-            len(sorted_bullets),
+            len(selected),
         )
 
     return assembled
@@ -120,12 +160,11 @@ def _select_and_trim_experiences(
 
 def _select_and_trim_projects(
     scored_projects: list[dict],
-    max_projects: int = 2,
+    resume: dict | None,
+    bullet_lookup: dict[str, float],
+    max_projects: int = 3,
 ) -> list[dict]:
-    """
-    Sort projects by avg_relevance, keep top max_projects.
-    For each, keep top-3 bullets above threshold (or top-1 fallback).
-    """
+    """Sort projects by avg_relevance, keep top max_projects with ALL original bullets."""
     sorted_projects = sorted(
         scored_projects,
         key=lambda p: p.get("avg_relevance", 0.0),
@@ -134,24 +173,36 @@ def _select_and_trim_projects(
 
     assembled: list[dict] = []
     for proj in sorted_projects[:max_projects]:
-        sorted_bullets = sorted(
-            proj.get("bullets", []),
-            key=lambda b: b.get("semantic_score", 0.0),
-            reverse=True,
+        orig_bullets = _get_original_bullets(
+            (proj.get("name", ""),), resume, "projects"
         )
-        passing = [
-            b
-            for b in sorted_bullets
-            if b.get("semantic_score", 0.0) >= BULLET_SCORE_THRESHOLD
-        ]
-        if not passing:
-            passing = sorted_bullets[:1]
+        if orig_bullets:
+            ordered = sorted(
+                orig_bullets,
+                key=lambda b: bullet_lookup.get(b, 0.0),
+                reverse=True,
+            )
+        else:
+            sorted_scored = sorted(
+                proj.get("bullets", []),
+                key=lambda b: b.get("semantic_score", 0.0),
+                reverse=True,
+            )
+            ordered = [b["text"] for b in sorted_scored]
+
+        # Get original description from resume if available
+        orig_desc = proj.get("description", "")
+        if resume:
+            for p in resume.get("sections", {}).get("projects", []):
+                if p.get("name", "").strip() == proj.get("name", "").strip():
+                    orig_desc = p.get("description", "") or orig_desc
+                    break
 
         assembled.append(
             {
                 "name": proj.get("name", ""),
-                "description": proj.get("description", ""),
-                "bullets": [b["text"] for b in passing[:3]],
+                "description": orig_desc,
+                "bullets": ordered,
                 "avg_relevance": proj.get("avg_relevance", 0.0),
             }
         )
@@ -160,57 +211,62 @@ def _select_and_trim_projects(
 
 
 def _curate_skills(
-    resume_skills: list[str],
+    scored_skills: list[str],
+    skills_categorized: list[dict],
     skills_analysis: dict,
-) -> list[str]:
+) -> dict:
     """
-    Return a curated skill list with JD-matched skills first.
+    Return curated skills in two forms:
+      - "flat":        plain list (JD-matched first) — for fallback
+      - "categorized": list of {category, skills} with JD-matched skills
+                       promoted to front of each category
 
-    Order:
-      1. Covered skills (present in resume AND required/preferred by JD)
-      2. Remaining resume skills (not mentioned in JD but still valid)
+    Uses categorized structure from person1 if available.
     """
     covered_lower = {s.lower() for s in skills_analysis.get("covered", [])}
-    resume_skills_lower_map = {s.lower(): s for s in resume_skills}
+    missing_lower = {s.lower() for s in skills_analysis.get("missing", [])}
 
-    # JD-matched skills first (preserve original casing from resume)
-    jd_matched: list[str] = []
-    remaining: list[str] = []
+    # Build flat curated list (JD-matched first)
+    jd_matched = [s for s in scored_skills if s.lower() in covered_lower]
+    remaining = [s for s in scored_skills if s.lower() not in covered_lower]
+    flat = jd_matched + remaining
 
-    for skill in resume_skills:
-        if skill.lower() in covered_lower:
-            jd_matched.append(skill)
-        else:
-            remaining.append(skill)
+    # Build categorized list preserving original groups
+    curated_cats: list[dict] = []
+    if skills_categorized:
+        for cat in skills_categorized:
+            skills_in_cat = cat.get("skills", [])
+            # Promote JD-covered skills to front within each category
+            matched = [s for s in skills_in_cat if s.lower() in covered_lower]
+            rest = [s for s in skills_in_cat if s.lower() not in covered_lower]
+            curated_cats.append(
+                {
+                    "category": cat["category"],
+                    "skills": matched + rest,
+                }
+            )
+    else:
+        # No categories from person1 — wrap flat list
+        curated_cats = [{"category": "Skills", "skills": flat}]
 
-    return jd_matched + remaining
+    return {"flat": flat, "categorized": curated_cats}
 
 
 def _build_gap_report(skills_analysis: dict, jd: dict) -> dict:
-    """
-    Produce the actionable gap report that goes alongside (not inside) the resume.
-
-    Returns:
-        {
-          "missing_skills":  [str],
-          "partial_matches": [{"jd_skill": str, "closest_bullet": str,
-                               "similarity": float, "note": str}],
-          "jd_title":        str,
-          "jd_company":      str,
-          "recommendation":  str
-        }
-    """
+    """Produce the actionable gap report."""
     missing = skills_analysis.get("missing", [])
     partial = skills_analysis.get("partial_match", [])
 
     lines: list[str] = []
     if missing:
         lines.append(
-            f"Missing skills ({len(missing)}): add these to your resume if you have them: {', '.join(missing)}."
+            f"Missing skills ({len(missing)}): add these to your resume if you have them: "
+            + ", ".join(missing)
+            + "."
         )
     if partial:
         lines.append(
-            f"Partial matches ({len(partial)}): you likely have these but need clearer wording — "
+            f"Partial matches ({len(partial)}): consider clearer wording for — "
             + "; ".join(f'"{p["jd_skill"]}"' for p in partial)
             + "."
         )
@@ -233,45 +289,77 @@ def _build_gap_report(skills_analysis: dict, jd: dict) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def assemble_resume(scored_output: dict, jd: dict) -> dict:
+def assemble_resume(
+    scored_output: dict,
+    jd: dict,
+    resume: dict | None = None,
+) -> dict:
     """
-    Convert Person 2's scored JSON into an assembled resume dict ready for
-    LaTeX/PDF generation.
+    Convert Person 2's scored JSON into an assembled resume dict for PDF generation.
 
     Args:
-        scored_output: The full dict returned by person2_scoring.scorer.score_resume().
-        jd:            The parsed JD dict from person1_parsing.jd_parser.parse_jd().
+        scored_output: Output of person2_scoring.scorer.score_resume().
+        jd:            Parsed JD dict from person1_parsing.jd_parser.parse_jd().
+        resume:        Full resume dict from person1_parsing.resume_parser.parse_resume().
+                       When provided, original bullets and extra sections are preserved.
 
-    Returns:
-        {
-          "contact":          dict  (pass-through from original resume if available),
-          "experience":       [assembled experience entries],
-          "projects":         [assembled project entries],
-          "education":        [education entries — pass-through],
-          "skills":           [curated skill list],
-          "gap_report":       dict,
-          "overall_scores":   {"semantic": float, "keyword": float},
-          "jd_meta":          {"title": str, "company": str}
-        }
+    Returns dict with keys:
+        contact, experience, projects, education, skills, extra_sections,
+        gap_report, overall_scores, jd_meta
     """
     scored_sections = scored_output.get("scored_sections", {})
     skills_analysis = scored_output.get(
         "skills_analysis", {"covered": [], "missing": [], "partial_match": []}
     )
 
-    experience = _select_and_trim_experiences(scored_sections.get("experience", []))
-    projects = _select_and_trim_projects(scored_sections.get("projects", []))
+    bullet_lookup = _build_bullet_score_lookup(scored_sections)
+
+    experience = _select_and_trim_experiences(
+        scored_sections.get("experience", []), resume, bullet_lookup
+    )
+    projects = _select_and_trim_projects(
+        scored_sections.get("projects", []), resume, bullet_lookup
+    )
     education = scored_sections.get("education", [])
-    raw_skills = scored_sections.get("skills", [])
-    curated_skills = _curate_skills(raw_skills, skills_analysis)
+
+    # Enrich education with courses if available from full resume
+    if resume:
+        for edu_entry in education:
+            for orig_edu in resume.get("sections", {}).get("education", []):
+                if orig_edu.get("school", "")[:30] in edu_entry.get(
+                    "school", ""
+                ) or edu_entry.get("school", "")[:30] in orig_edu.get("school", ""):
+                    if orig_edu.get("courses") and not edu_entry.get("courses"):
+                        edu_entry["courses"] = orig_edu["courses"]
+                    break
+
+    # Skills: prefer categorized from full resume
+    scored_skills = scored_sections.get("skills", [])
+    skills_categorized = []
+    if resume:
+        skills_categorized = resume.get("sections", {}).get("skills_categorized", [])
+
+    skills_result = _curate_skills(scored_skills, skills_categorized, skills_analysis)
+
+    # Extra sections from full resume
+    extra_sections: dict = {}
+    if resume:
+        extra_sections = resume.get("extra_sections", {})
+
+    # Contact: prefer full resume contact (has linkedin/location)
+    contact = scored_output.get("contact", {})
+    if resume and resume.get("contact"):
+        contact = resume["contact"]
+
     gap_report = _build_gap_report(skills_analysis, jd)
 
     assembled = {
-        "contact": scored_output.get("contact", {}),
+        "contact": contact,
         "experience": experience,
         "projects": projects,
         "education": education,
-        "skills": curated_skills,
+        "skills": skills_result,
+        "extra_sections": extra_sections,
         "gap_report": gap_report,
         "overall_scores": {
             "semantic": scored_output.get("overall_semantic_score", 0.0),
@@ -284,11 +372,12 @@ def assemble_resume(scored_output: dict, jd: dict) -> dict:
     }
 
     log.info(
-        "Assembly complete: %d experiences, %d projects, %d skills; "
-        "missing=%d, partial=%d",
+        "Assembly complete: %d experiences, %d projects, %d skill categories; "
+        "extra_sections=%s, missing=%d, partial=%d",
         len(experience),
         len(projects),
-        len(curated_skills),
+        len(skills_result["categorized"]),
+        list(extra_sections.keys()),
         len(gap_report["missing_skills"]),
         len(gap_report["partial_matches"]),
     )
